@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Eratosthenes – der Erdumfang aus zwei Schatten</title>
+<style>
+  :root{--papier:#faf6ee;--panel:#fffdf8;--ink:#3a3228;--ink2:#5b5145;
+    --line:#d9cdb6;--akzent:#8a4b2a;--blau:#1f6f92;--gruen:#2f8055;--gold:#cf9d12;
+    --schatten:0 6px 22px rgba(60,48,30,.13);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--papier);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+  body{display:flex;flex-direction:column}
+  header{flex:0 0 auto;background:linear-gradient(180deg,#fffdf8,#f2ece0);
+    border-bottom:1px solid var(--line);padding:7px 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  h1{font-size:16px;margin:0;font-weight:700}
+  h1 span{font-weight:400;color:var(--ink2);font-size:13px}
+  .wachs{flex:1 1 auto}
+  button{font:inherit;background:var(--panel);color:var(--ink);border:1px solid var(--line);
+    border-radius:9px;padding:5px 10px;cursor:pointer;font-size:13px}
+  button:hover{background:#f7f1e6}
+  button.aktiv{background:var(--akzent);color:#fff;border-color:var(--akzent)}
+  button.gross{font-size:19px;line-height:1;padding:7px 14px;font-weight:700;min-width:44px}
+  select{font:inherit;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:5px 8px;color:var(--ink);font-size:13px}
+  main{flex:1 1 auto;position:relative;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+  .leiste{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line);
+    padding:8px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .feld{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2);flex:1 1 190px;min-width:165px}
+  input[type=range]{flex:1 1 auto;min-width:70px;accent-color:var(--akzent)}
+  .feld span{font-variant-numeric:tabular-nums;font-weight:700;color:var(--akzent);min-width:56px;text-align:right}
+  .info{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line);
+    padding:9px 14px 12px;max-height:26vh;overflow-y:auto}
+  .info h2{margin:0 0 3px;font-size:15px}
+  .info .lage{color:var(--akzent);font-weight:700;font-size:12.5px;display:block;margin-bottom:5px}
+  .info p{margin:0 0 6px;font-size:13px;line-height:1.55;color:var(--ink2)}
+  #hilfe{position:absolute;inset:0;background:rgba(36,31,24,.55);z-index:40;display:none;
+    align-items:center;justify-content:center;padding:16px}
+  #hilfe.offen{display:flex}
+  .hilfebox{background:var(--panel);border-radius:16px;max-width:580px;max-height:86%;
+    overflow-y:auto;padding:20px 22px;box-shadow:var(--schatten)}
+  .hilfebox h2{margin:0 0 10px;font-size:18px}
+  .hilfebox h3{font-size:13px;margin:14px 0 4px;color:var(--akzent)}
+  .hilfebox ul{margin:0 0 10px;padding-left:20px;font-size:13.5px;line-height:1.55}
+  .hilfebox p{font-size:13.5px;line-height:1.6;margin:0 0 8px}
+  .hilfebox .impressum{font-size:12px;line-height:1.5;color:var(--ink2);margin:0 0 8px}
+  .hilfebox .impressum a{color:var(--akzent)}
+  .formel{text-align:center;font-size:15px;margin:10px 0;color:var(--akzent)}
+  @media (max-width:640px){h1 span{display:none} .info{max-height:32vh}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Eratosthenes <span>— der Erdumfang aus zwei Schatten</span></h1>
+    <div class="wachs"></div>
+    <select id="muster" aria-label="Beispiel wählen"></select>
+    <button id="btnStrahlen" class="aktiv" title="Sonnenstrahlen">Strahlen</button>
+    <button id="btnScheibe" title="Zum Vergleich: flache Erde">Flache Erde</button>
+    <button id="btnHilfe" title="Hilfe und Impressum" aria-label="Hilfe">?</button>
+  </header>
+  <main>
+    <canvas id="cv"></canvas>
+        <div id="hilfe"><div class="hilfebox">
+      <h2>Der Erdumfang aus zwei Schatten</h2>
+      <p>Um −240 misst Eratosthenes in Alexandria den Schattenwinkel eines senkrechten
+         Stabes zur Mittagszeit der Sommersonnenwende: <b>7,2°</b>. In Syene, weit im
+         Süden, wirft ein Stab an diesem Tag <b>gar keinen Schatten</b> – die Sonne steht
+         dort im Zenit.</p>
+      <p>Weil die Sonnenstrahlen praktisch parallel einfallen, ist der Schattenwinkel in
+         Alexandria genau der <b>Mittelpunktswinkel</b> zwischen beiden Orten. 7,2° sind
+         ein Fünfzigstel des Vollkreises – also ist der Erdumfang das Fünfzigfache der
+         Entfernung:</p>
+      <p class="formel">U = s · 360° / α</p>
+      <h3>Was daran groß ist</h3>
+      <p>Die Messung braucht nichts als einen Stab, einen Schatten und eine Streckenlänge.
+         Sie setzt allerdings zwei Dinge voraus, die selbst schon Erkenntnisse sind: dass
+         die Erde eine <b>Kugel</b> ist und dass die Sonne so weit entfernt steht, dass
+         ihre Strahlen als <b>parallel</b> gelten dürfen.</p>
+      <p>Schalte auf <b>Flache Erde</b> um: Dann müssten dieselben Beobachtungen zu einer
+         nahen Sonne führen – und aus verschiedenen Ortspaaren kämen widersprüchliche
+         Werte für ihre Höhe heraus. Genau daran scheitert das flache Modell.</p>
+      <h3>Wie genau war er?</h3>
+      <p>Eratosthenes erhielt 250 000 Stadien. Wie genau das war, hängt daran, welches
+         Stadion er meinte – ein Streit, der bis heute nicht entschieden ist. Mit dem
+         attischen Stadion (185 m) ergäben sich 46 250 km, also 15 % zu viel; mit dem
+         ägyptischen (157,5 m) rund 39 375 km und damit <b>1,6 % zu wenig</b>. Der wahre
+         Wert beträgt 40 075 km am Äquator.</p>
+      <h3>Zum Ausprobieren</h3>
+      <ul>
+        <li>Die beiden Orte verschieben und sehen, wie sich der Winkel ändert.</li>
+        <li>Liegen die Orte <b>dicht beieinander</b>, wird der Winkel winzig – ein kleiner
+            Messfehler wirkt sich dann enorm aus. Genau deshalb wählte Eratosthenes zwei
+            weit entfernte Orte.</li>
+        <li>Der Messfehler-Regler zeigt, wie stark sich ein halbes Grad Ungenauigkeit
+            auswirkt.</li>
+      </ul>
+      <h3>Impressum</h3>
+      <p class="impressum">Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG) und § 18 Abs. 2
+        Medienstaatsvertrag (MStV)<br><br><b>Michael Authier</b><br>Hofweg 3<br>92224 Amberg<br>
+        E-Mail: <a href="mailto:mauthier@web.de">mauthier@web.de</a><br><br>
+        Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV: Michael Authier, Anschrift wie oben.</p>
+      <p class="impressum"><b>Haftung für Inhalte.</b> Die Inhalte wurden mit Sorgfalt erstellt.
+        Für Richtigkeit, Vollständigkeit und Aktualität kann keine Gewähr übernommen werden.
+        Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte nach den allgemeinen
+        Gesetzen verantwortlich; nach §§ 8 bis 10 DDG besteht keine Verpflichtung, übermittelte
+        oder gespeicherte fremde Informationen zu überwachen.</p>
+      <p class="impressum"><b>Urheberrecht.</b> Darstellung und Texte unterliegen dem deutschen
+        Urheberrecht. Die Grafik wird vollständig im Browser berechnet und enthält kein fremdes
+        Bildmaterial. Eine Nutzung im eigenen Unterricht ist ausdrücklich erwünscht.</p>
+      <p class="impressum"><b>Datenschutz.</b> Diese Datei läuft vollständig im Browser. Es werden
+        keine Daten erhoben, gespeichert oder übertragen; es bestehen keine Verbindungen zu
+        externen Servern und es werden keine Cookies gesetzt.</p>
+      <p class="impressum"><b>Streitbeilegung.</b> Ich bin nicht bereit und nicht verpflichtet,
+        an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+    </div></div>
+  </main>
+  <div class="leiste">
+    <label class="feld">Ort A (Breite)
+      <input id="rA" type="range" min="-30" max="75" step="1" value="31" aria-label="Breite von Ort A">
+      <span id="wA">31° N</span></label>
+    <label class="feld">Ort B (Breite)
+      <input id="rB" type="range" min="-30" max="75" step="1" value="24" aria-label="Breite von Ort B">
+      <span id="wB">24° N</span></label>
+    <label class="feld">Messfehler
+      <input id="rF" type="range" min="0" max="100" step="1" value="0" aria-label="Messfehler">
+      <span id="wF">0,0°</span></label>
+    <label class="feld">Ausschnitt
+      <input id="rZ" type="range" min="100" max="3000" step="10" value="100" aria-label="Ausschnitt">
+      <span id="wZ">1,0×</span></label>
+  </div>
+  <div class="info">
+    <h2 id="tTitel">–</h2><span class="lage" id="tLage">–</span><p id="tText"></p>
+  </div>
+<script>
+/* ============================================================
+   Eratosthenes: Erdumfang aus zwei Schattenwinkeln
+
+   Sind die Sonnenstrahlen parallel, so ist die Differenz der
+   Schattenwinkel an zwei Orten gleich dem Mittelpunktswinkel
+   zwischen ihnen:
+
+        U = s · 360° / α
+
+   Dabei ist s die Entfernung längs des Meridians.
+   ============================================================ */
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const rA = document.getElementById('rA'), wA = document.getElementById('wA');
+const rB = document.getElementById('rB'), wB = document.getElementById('wB');
+const rF = document.getElementById('rF'), wF = document.getElementById('wF');
+const rZ = document.getElementById('rZ'), wZ = document.getElementById('wZ');
+const muster = document.getElementById('muster');
+const tTitel = document.getElementById('tTitel'), tLage = document.getElementById('tLage');
+const tText = document.getElementById('tText'), hilfe = document.getElementById('hilfe');
+let zeigeStrahlen = true, flach = false;
+
+const U_WAHR = 40075;                         // Erdumfang in km
+const KM_JE_GRAD = U_WAHR/360;
+const BEISPIELE = [
+  {n:'Alexandria und Syene (Eratosthenes)', a:31.2, b:23.4},
+  {n:'Hamburg und München',                 a:53.6, b:48.1},
+  {n:'Burghausen und Rom',                  a:48.2, b:41.9},
+  {n:'Nordkap und Kairo',                   a:71.2, b:30.0},
+  {n:'zwei Nachbarorte',                    a:48.2, b:47.7}
+];
+BEISPIELE.forEach((b,i)=>{
+  const o=document.createElement('option'); o.value=String(i); o.textContent=b.n;
+  if(i===0)o.selected=true; muster.appendChild(o);
+});
+// Bei der Sommersonnenwende steht die Sonne über dem Wendekreis
+const SONNENDEK = 23.44;
+const schattenwinkel = breite => breite - SONNENDEK;      // in Grad, Vorzeichen behalten
+function erdumfang(breiteA, breiteB, fehler){
+  const a1 = schattenwinkel(breiteA) + (fehler||0);
+  const a2 = schattenwinkel(breiteB);
+  const alpha = Math.abs(a1 - a2);
+  const s = Math.abs(breiteA - breiteB) * KM_JE_GRAD;     // wahre Entfernung
+  if (alpha < 1e-9) return {alpha:0, s, U:Infinity};
+  return {alpha, s, U: s*360/alpha};
+}
+const zahl=(x,n)=>x.toFixed(n===undefined?1:n).replace('.',',');
+
+function zeichne(){
+  const dpr=Math.min(window.devicePixelRatio||1,2.5);
+  const W=cv.clientWidth,H=cv.clientHeight;
+  if(!W||!H)return;
+  if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  ctx.font='11px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const bA=Number(rA.value), bB=Number(rB.value);
+  const GRAD=Math.PI/180;
+  const zoom=Number(rZ.value)/100;
+
+  /* Richtung vom Erdmittelpunkt zur Sonne: über dem Wendekreis des Krebses,
+     also bei der Breite +23,44°. In Bildschirmkoordinaten zeigt y nach unten. */
+  const aSonne=(90-SONNENDEK)*GRAD;
+  const uS=[Math.cos(aSonne), -Math.sin(aSonne)];        // zur Sonne hin
+  const lauf=[-uS[0], -uS[1]];                            // Laufrichtung der Strahlen
+
+  if (!flach){
+    const cx=W*0.44, cy=H*0.58, R=Math.min(W*0.30, H*0.34)/zoom;
+    ctx.fillStyle='#f2ece0'; ctx.strokeStyle='#8a4b2a'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='rgba(185,166,132,.9)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#8a7d68'; ctx.textAlign='left';
+    ctx.fillText('Äquator', cx+R+5, cy);
+    // Wendekreis, über dem die Sonne steht
+    const wp=[cx+R*uS[0], cy+R*uS[1]];
+    ctx.fillStyle='#cf9d12';
+    ctx.beginPath(); ctx.arc(wp[0],wp[1],3.5,0,7); ctx.fill();
+
+    if (zeigeStrahlen){
+      // parallele Strahlen, quer zur Sonnenrichtung verteilt
+      ctx.strokeStyle='rgba(207,157,18,.6)'; ctx.lineWidth=1.3;
+      const q=[-uS[1], uS[0]];                            // quer zur Richtung
+      for(let k=-10;k<=10;k++){
+        const off=k*R/6;
+        const px=cx+q[0]*off+uS[0]*R*2.4, py=cy+q[1]*off+uS[1]*R*2.4;
+        ctx.beginPath(); ctx.moveTo(px,py);
+        ctx.lineTo(px+lauf[0]*R*2.2, py+lauf[1]*R*2.2); ctx.stroke();
+      }
+      ctx.fillStyle='#cf9d12'; ctx.textAlign='center';
+      ctx.fillText('Sonnenstrahlen (parallel)', cx+uS[0]*R*2.0, cy+uS[1]*R*2.0-12);
+    }
+    // die beiden Orte auf dem Meridian
+    [[bA,'A','#1f6f92'],[bB,'B','#2f8055']].forEach(([b,name,farbe])=>{
+      const w=(90-b)*GRAD;
+      const ux=Math.cos(w), uy=-Math.sin(w);              // Lot nach außen
+      const px=cx+R*ux, py=cy+R*uy;
+      const stab=Math.max(18, R*0.16);
+      ctx.strokeStyle=farbe; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+ux*stab, py+uy*stab); ctx.stroke();
+      ctx.fillStyle=farbe;
+      ctx.beginPath(); ctx.arc(px,py,4,0,7); ctx.fill();
+      ctx.fillStyle='#3a3228'; ctx.textAlign='left';
+      ctx.fillText(name+' – '+zahl(b)+'°', px+ux*(stab+8), py+uy*(stab+8));
+      // Strahl durch die Stabspitze: der Schatten fällt auf die Kugel
+      const sp=[px+ux*stab, py+uy*stab];
+      ctx.strokeStyle='rgba(58,50,40,.5)'; ctx.lineWidth=1.2; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(sp[0]-lauf[0]*R*0.8, sp[1]-lauf[1]*R*0.8);
+      ctx.lineTo(sp[0]+lauf[0]*stab*2.6, sp[1]+lauf[1]*stab*2.6); ctx.stroke();
+      ctx.setLineDash([]);
+      const sw=Math.abs(schattenwinkel(b));
+      ctx.fillStyle=farbe; ctx.textAlign='center';
+      ctx.fillText(sw<0.4?'kein Schatten':zahl(sw)+'°',
+        sp[0]+lauf[0]*stab*3.4, sp[1]+lauf[1]*stab*3.4);
+    });
+    // Mittelpunktswinkel
+    const w1=(90-bA)*GRAD, w2=(90-bB)*GRAD;
+    ctx.strokeStyle='rgba(138,75,42,.55)'; ctx.lineWidth=1.2;
+    [w1,w2].forEach(w=>{ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+R*Math.cos(w), cy-R*Math.sin(w)); ctx.stroke();});
+    ctx.strokeStyle='#8a4b2a'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy,R*0.30, -Math.max(w1,w2), -Math.min(w1,w2)); ctx.stroke();
+    ctx.fillStyle='#8a4b2a'; ctx.textAlign='center';
+    const wm=(w1+w2)/2;
+    ctx.fillText('α = '+zahl(Math.abs(bA-bB))+'°',
+      cx+R*0.46*Math.cos(wm), cy-R*0.46*Math.sin(wm));
+  } else {
+    /* --- flache Erde: dieselben Beobachtungen, nahe Sonne ---
+       Die Sonne steht wie im Kugelbild rechts oben, der Schatten fällt also
+       nach links. Jeder Strahl läuft von der Sonne über die Stabspitze zur
+       Schattenspitze; wo sich beide Strahlen schneiden, müsste die Sonne stehen. */
+    const y = H*0.74;
+    const swA = Math.abs(schattenwinkel(bA)), swB = Math.abs(schattenwinkel(bB));
+    const tA = Math.tan(swA*GRAD), tB = Math.tan(swB*GRAD);
+    const stab = Math.max(16, 46/zoom);
+    const sKm = Math.abs(bA - bB)*KM_JE_GRAD;
+    const pxJeKm = (W*0.30/Math.max(sKm,1))/zoom;
+    const xA = W*0.24, xB = xA + sKm*pxJeKm;
+    // Schnittpunkt der Strahlen über den Stabspitzen
+    const s = (tA - tB) !== 0 ? (xB - xA)/(tA - tB) : Infinity;
+    const sonneX = xA + tA*s, sonneY = y - stab - s;
+
+    ctx.strokeStyle='#8a4b2a'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(W*0.05,y); ctx.lineTo(W*0.95,y); ctx.stroke();
+    ctx.fillStyle='#8a7d68'; ctx.textAlign='left';
+    ctx.fillText('flache Erde', W*0.05, y+18);
+
+    [[xA,tA,'A','#1f6f92'],[xB,tB,'B','#2f8055']].forEach(([x,tt,name,farbe])=>{
+      const spitze = [x, y-stab];
+      const schattenSpitze = [x - tt*stab, y];      // Sonne rechts ⇒ Schatten links
+      // Strahl von der Sonne über die Stabspitze bis zur Schattenspitze
+      if (isFinite(s) && s > 0){
+        ctx.strokeStyle='rgba(207,157,18,.85)'; ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(sonneX, sonneY);
+        ctx.lineTo(schattenSpitze[0], schattenSpitze[1]);
+        ctx.stroke();
+      }
+      // Stab
+      ctx.strokeStyle=farbe; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(spitze[0],spitze[1]); ctx.stroke();
+      // Schatten auf dem Boden
+      ctx.strokeStyle=farbe; ctx.lineWidth=3; ctx.globalAlpha=.5;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(schattenSpitze[0], y); ctx.stroke();
+      ctx.globalAlpha=1;
+      ctx.fillStyle=farbe; ctx.textAlign='center';
+      ctx.fillText(name, x, y+16);
+      ctx.fillText(zahl(name==='A'?swA:swB)+'°', (x+schattenSpitze[0])/2, y+30);
+    });
+    if (isFinite(s) && s > 0){
+      const sichtbar = sonneY > -H*4 && sonneY < H && sonneX < W*3;
+      if (sichtbar){
+        ctx.fillStyle='#cf9d12';
+        ctx.beginPath(); ctx.arc(sonneX, sonneY, Math.max(6, 16/zoom), 0, 7); ctx.fill();
+        ctx.fillStyle='#a8801a'; ctx.textAlign='center';
+        ctx.fillText('hier müsste die Sonne stehen', sonneX, sonneY - Math.max(14, 26/zoom));
+      }
+      const hKm = s/pxJeKm;
+      ctx.fillStyle='#8a4b2a'; ctx.textAlign='center';
+      ctx.fillText('Höhe der Sonne aus diesen beiden Messungen: '+zahl(hKm,0)+' km', W*0.5, H*0.10);
+      ctx.fillText('Jedes andere Ortspaar ergäbe einen anderen Wert – daran scheitert das Modell.',
+        W*0.5, H*0.16);
+      if (!sichtbar) ctx.fillText('Mit dem Regler „Ausschnitt“ herauszoomen, bis die Sonne erscheint.',
+        W*0.5, H*0.22);
+    } else {
+      ctx.fillStyle='#8a4b2a'; ctx.textAlign='center';
+      ctx.fillText('Bei gleichen Schattenwinkeln laufen die Strahlen parallel –', W*0.5, H*0.10);
+      ctx.fillText('dann liegt die Sonne unendlich weit weg, und die flache Erde wäre möglich.',
+        W*0.5, H*0.16);
+    }
+  }
+}
+function zeigeText(){
+  const bA=Number(rA.value), bB=Number(rB.value), f=Number(rF.value)/100;
+  wA.textContent=bA+'° N'; wB.textContent=bB+'° N'; wF.textContent=zahl(f)+'°';
+  wZ.textContent=zahl(Number(rZ.value)/100,1)+'×';
+  const e=erdumfang(bA,bB,f);
+  const abw=(e.U-U_WAHR)/U_WAHR*100;
+  wF.textContent=zahl(f)+'°';
+  tTitel.textContent = e.alpha < 0.05
+    ? 'Beide Orte liegen fast gleich – der Winkel verschwindet'
+    : 'Erdumfang U = ' + zahl(e.U,0) + ' km  (' + (abw>=0?'+':'') + zahl(abw) + ' %)';
+  tLage.textContent = 'Schattenwinkel A: ' + zahl(Math.abs(schattenwinkel(bA))) +
+    '° · B: ' + zahl(Math.abs(schattenwinkel(bB))) + '° · Mittelpunktswinkel α = ' +
+    zahl(e.alpha) + '° · Entfernung s = ' + zahl(e.s,0) + ' km';
+  const empfindlich = e.alpha>0 ? Math.abs(e.U*(1/e.alpha)*0.5) : Infinity;
+  tText.textContent = e.alpha < 0.05
+    ? 'Liegen beide Orte auf fast derselben Breite, ist der Schattenunterschied null – und ' +
+      'aus null lässt sich nichts teilen. Eratosthenes brauchte gerade den großen Abstand.'
+    : 'Aus α = ' + zahl(e.alpha) + '° und s = ' + zahl(e.s,0) + ' km folgt U = s · 360°/α = ' +
+      zahl(e.U,0) + ' km. Ein Messfehler von einem halben Grad würde das Ergebnis um rund ' +
+      zahl(empfindlich,0) + ' km verschieben – bei kleinem Winkel also viel stärker als bei ' +
+      'großem. Das ist der Grund, warum die beiden Orte weit auseinanderliegen sollten. ' +
+      'Eratosthenes wählte Alexandria und Syene mit rund 7,2° Unterschied.';
+  zeichne();
+}
+[rA,rB,rF,rZ].forEach(el=>el.addEventListener('input',zeigeText));
+muster.addEventListener('change',()=>{
+  const b=BEISPIELE[Number(muster.value)];
+  rA.value=String(Math.round(b.a)); rB.value=String(Math.round(b.b)); zeigeText();
+});
+const schalter=(id,lesen,setzen)=>{const b=document.getElementById(id);
+  b.addEventListener('click',()=>{setzen(!lesen());b.classList.toggle('aktiv',lesen());zeichne();});};
+schalter('btnStrahlen',()=>zeigeStrahlen,x=>zeigeStrahlen=x);
+schalter('btnScheibe',()=>flach,x=>flach=x);
+document.getElementById('btnHilfe').addEventListener('click',()=>hilfe.classList.add('offen'));
+hilfe.addEventListener('click',e=>{if(e.target===hilfe)hilfe.classList.remove('offen');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')hilfe.classList.remove('offen');});
+window.addEventListener('resize',zeichne);
+window.__er={erdumfang,schattenwinkel,BEISPIELE,U_WAHR,zeichne,zeigeText,
+  zustand:()=>({a:Number(rA.value),b:Number(rB.value),fehler:Number(rF.value)/100,
+    strahlen:zeigeStrahlen,flach,zoom:Number(rZ.value)/100})};
+zeigeText();
+</script>
+</body>
+</html>
